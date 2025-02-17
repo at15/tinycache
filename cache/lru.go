@@ -10,10 +10,14 @@ import (
 // LRUCache implements a [Cache] that supports different [EvictionPolicy].
 // LRU instead of Lru https://google.github.io/styleguide/go/decisions.html#initialisms
 type LRUCache struct {
-	capacity int
+	capacity         int
+	ttlCheckInterval time.Duration
+	stop             chan struct{}
 
 	// mu locaks all the buckets and the order list.
-	mu sync.RWMutex
+	// We don't use a RWMutex because even read operation
+	// can do updates due to evict and updating usage order.
+	mu sync.Mutex
 	// buckets maps to key values where value is a pointer to an element in the order list.
 	// The actual value is stored in the [list.Element] Value field.
 	buckets map[string]map[string]*list.Element
@@ -31,12 +35,17 @@ type cacheEntry struct {
 	expiration time.Time
 }
 
-func NewLRUCache(capacity int) *LRUCache {
-	return &LRUCache{
-		capacity: capacity,
-		buckets:  make(map[string]map[string]*list.Element),
-		order:    list.New(),
+func NewLRUCache(capacity int, ttlCheckInterval time.Duration) *LRUCache {
+	c := &LRUCache{
+		capacity:         capacity,
+		ttlCheckInterval: ttlCheckInterval,
+		stop:             make(chan struct{}),
+
+		buckets: make(map[string]map[string]*list.Element),
+		order:   list.New(),
 	}
+	c.startTTLCheck()
+	return c
 }
 
 func (c *LRUCache) Set(bucket string, key string, value []byte, opts Options) error {
@@ -81,8 +90,8 @@ func (c *LRUCache) Set(bucket string, key string, value []byte, opts Options) er
 }
 
 func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// Per requirement, use Oldest eviction policy on Get.
 	// TODO: this requirement is quite confusing, why not use
@@ -118,6 +127,7 @@ func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) 
 	return entry.value, nil
 }
 
+// Delete key from the cache, empty bucket is also removed.
 func (c *LRUCache) Delete(bucket string, key string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -138,6 +148,14 @@ func (c *LRUCache) Delete(bucket string, key string) error {
 	return nil
 }
 
+// Stop the background TTL check (if any).
+// NOTE: Even if you stop the check in the background
+// [Get] still checks the TTL.
+func (c *LRUCache) Stop() {
+	close(c.stop)
+}
+
+// Called by Set and Get when capacity is reached
 func (c *LRUCache) evict(policy EvictionPolicy) {
 	// No need to lock, caller already holds the lock
 
@@ -153,6 +171,8 @@ func (c *LRUCache) evict(policy EvictionPolicy) {
 	c.del(e)
 }
 
+// Shared by evict and Delete.
+// NOTE: caller must hold the write lock.
 func (c *LRUCache) del(e *list.Element) {
 	c.order.Remove(e)
 
@@ -161,5 +181,38 @@ func (c *LRUCache) del(e *list.Element) {
 	delete(b, entry.key)
 	if len(b) == 0 {
 		delete(c.buckets, entry.bucket)
+	}
+}
+
+func (c *LRUCache) startTTLCheck() {
+	if c.ttlCheckInterval <= 0 {
+		return
+	}
+
+	ticker := time.NewTicker(c.ttlCheckInterval)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				c.checkExpired()
+			case <-c.stop:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func (c *LRUCache) checkExpired() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, b := range c.buckets {
+		for _, e := range b {
+			entry := e.Value.(cacheEntry)
+			if !entry.expiration.IsZero() && entry.expiration.Before(time.Now()) {
+				c.del(e)
+			}
+		}
 	}
 }
