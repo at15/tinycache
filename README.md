@@ -5,7 +5,11 @@ A in memory kv cache in Go with http and grpc interface. Toy project, do NOT use
 ## Usage
 
 ```bash
+# Install to $GOPATH/bin
 make install
+# Run server on localhost:8080
+# View metrics on http://localhost:8080/stats
+tinycache
 ```
 
 curl
@@ -26,16 +30,16 @@ curl -X DELETE http://localhost:8080/cache/b1/k1
 KV
 
 - [x] copy the interface
-- [ ] in memory cache
-  - [ ] bucket, max 255 keys is per bucket or entire cache? Should be entire cache otherwise there is no limit on number of buckets.
-  - [ ] eviction policy, each operation can have different policy in options???
-  - [ ] ttl (lazy or run in background)
-  - [ ] test
+- [x] in memory cache
+  - [x] bucket, max 255 keys is per bucket or entire cache? Should be entire cache otherwise there is no limit on number of buckets.
+  - [x] eviction policy, each operation can have different policy in options???
+  - [x] ttl (lazy or run in background)
+  - [x] test
 
 Server
 
 - [ ] grpc
-- [ ] http
-- [ ] metrics
+- [x] http
+- [x] metrics, using prometheus
 - [ ] client in the cli
 - [ ] redis protocol? (if I have time)

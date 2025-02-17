@@ -11,13 +11,15 @@ import (
 )
 
 type httpServer struct {
-	cache  cache.Cache
-	server *http.Server
+	cache   cache.Cache
+	metrics cache.MetricsExporter
+	server  *http.Server
 }
 
-func NewHTTPServer(cache cache.Cache) Server {
+func NewHTTPServer(cache cache.Cache, metrics cache.MetricsExporter) Server {
 	return &httpServer{
-		cache: cache,
+		cache:   cache,
+		metrics: metrics,
 		// server will be initalized in Start
 	}
 }
@@ -28,7 +30,7 @@ func (s *httpServer) Start(ctx context.Context, addr string, port int) error {
 	mux.HandleFunc("GET /cache/{bucket}/{key}", requireBucketAndKey(s.handleGet))
 	mux.HandleFunc("PUT /cache/{bucket}/{key}", requireBucketAndKey(s.handleSet))
 	mux.HandleFunc("DELETE /cache/{bucket}/{key}", requireBucketAndKey(s.handleDelete))
-	mux.HandleFunc("/stats", s.handleStats)
+	mux.Handle("/stats", s.metrics.HTTPHandler())
 
 	addr = fmt.Sprintf("%s:%d", addr, port)
 	server := &http.Server{
@@ -86,8 +88,4 @@ func (s *httpServer) handleSet(bucket, key string, body []byte) ([]byte, error) 
 
 func (s *httpServer) handleDelete(bucket, key string, body []byte) ([]byte, error) {
 	return nil, s.cache.Delete(bucket, key)
-}
-
-func (s *httpServer) handleStats(w http.ResponseWriter, r *http.Request) {
-	// TODO: stats on cache hit, evictions etc.
 }

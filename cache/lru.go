@@ -15,10 +15,11 @@ type LRUCache struct {
 	capacity         int
 	ttlCheckInterval time.Duration
 	stop             chan struct{}
-
-	// mu locaks all the buckets and the order list.
+	metrics          MetricsHandler
+	// mu locks all the buckets and the order list.
 	// We don't use a RWMutex because even read operation
 	// can do updates due to evict and updating usage order.
+	// Appling lock per bucket is also over complicated due to updating order list.
 	mu sync.Mutex
 	// buckets maps to key values where value is a pointer to an element in the order list.
 	// The actual value is stored in the [list.Element] Value field.
@@ -37,14 +38,15 @@ type cacheEntry struct {
 	expiration time.Time
 }
 
-func NewLRUCache(capacity int, ttlCheckInterval time.Duration) *LRUCache {
+func NewLRUCache(capacity int,
+	ttlCheckInterval time.Duration, metrics MetricsHandler) *LRUCache {
 	c := &LRUCache{
 		capacity:         capacity,
 		ttlCheckInterval: ttlCheckInterval,
 		stop:             make(chan struct{}),
-
-		buckets: make(map[string]map[string]*list.Element),
-		order:   list.New(),
+		metrics:          metrics,
+		buckets:          make(map[string]map[string]*list.Element),
+		order:            list.New(),
 	}
 	c.startTTLCheck()
 	return c
@@ -53,6 +55,7 @@ func NewLRUCache(capacity int, ttlCheckInterval time.Duration) *LRUCache {
 func (c *LRUCache) Set(bucket string, key string, value []byte, opts Options) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	defer c.metrics.AddSet()
 
 	// Create bucket if not exists
 	b, ok := c.buckets[bucket]
@@ -75,6 +78,7 @@ func (c *LRUCache) Set(bucket string, key string, value []byte, opts Options) er
 		if opts.EvictionPolicy == EvictionPolicyLRU || opts.EvictionPolicy == EvictionPolicyMRU {
 			c.order.MoveToBack(e)
 		}
+		c.metrics.AddSetExists()
 		return nil
 	}
 
@@ -106,11 +110,13 @@ func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) 
 	// TODO: define error for not found
 	b, ok := c.buckets[bucket]
 	if !ok {
+		c.metrics.AddNotFound()
 		return nil, fmt.Errorf("bucket %s not found", bucket)
 	}
 
 	e, ok := b[key]
 	if !ok {
+		c.metrics.AddNotFound()
 		return nil, fmt.Errorf("key %s not found", key)
 	}
 
@@ -118,6 +124,7 @@ func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) 
 	// Lazy TTL
 	if !entry.expiration.IsZero() && entry.expiration.Before(time.Now()) {
 		c.del(e)
+		c.metrics.AddExpire(true)
 		return nil, fmt.Errorf("key %s expired", key)
 	}
 
@@ -126,22 +133,27 @@ func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) 
 		c.order.MoveToBack(e)
 	}
 
+	c.metrics.AddHit()
 	return entry.value, nil
 }
 
 // Delete key from the cache, empty bucket is also removed.
 func (c *LRUCache) Delete(bucket string, key string) error {
+	c.metrics.AddDelete()
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// Error if not exists
 	b, ok := c.buckets[bucket]
 	if !ok {
+		c.metrics.AddNotFound()
 		return fmt.Errorf("bucket %s not found", bucket)
 	}
 
 	_, ok = b[key]
 	if !ok {
+		c.metrics.AddNotFound()
 		return fmt.Errorf("key %s not found", key)
 	}
 
@@ -171,6 +183,7 @@ func (c *LRUCache) evict(policy EvictionPolicy) {
 	}
 
 	c.del(e)
+	c.metrics.AddEvict()
 }
 
 // Shared by evict and Delete.
@@ -196,6 +209,7 @@ func (c *LRUCache) startTTLCheck() {
 		for {
 			select {
 			case <-ticker.C:
+				c.metrics.SetSize(c.order.Len())
 				c.checkExpired()
 			case <-c.stop:
 				ticker.Stop()

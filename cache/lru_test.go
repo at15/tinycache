@@ -24,7 +24,7 @@ func TestList(t *testing.T) {
 }
 
 func TestNoTTL(t *testing.T) {
-	c := NewLRUCache(10, 0)
+	c := NewLRUCache(10, 0, &noopMetrics{})
 	c.Set("b1", "k1", []byte("v1"), Options{})
 	value, err := c.Get("b1", "k1", Options{})
 	assert.NoError(t, err)
@@ -35,7 +35,7 @@ func TestNoTTL(t *testing.T) {
 }
 
 func TestCapacity(t *testing.T) {
-	c := NewLRUCache(3, 0)
+	c := NewLRUCache(3, 0, &noopMetrics{})
 	c.Set("b1", "k1", []byte("v1"), Options{})
 	c.Set("b1", "k2", []byte("v2"), Options{})
 	c.Set("b1", "k3", []byte("v3"), Options{})
@@ -49,7 +49,7 @@ func TestCapacity(t *testing.T) {
 }
 
 func TestTTL(t *testing.T) {
-	c := NewLRUCache(10, 20*time.Millisecond)
+	c := NewLRUCache(10, 20*time.Millisecond, &noopMetrics{})
 	c.Set("b1", "k1", []byte("v1"), Options{
 		TTL: 300 * time.Millisecond,
 	})
