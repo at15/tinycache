@@ -28,6 +28,6 @@ type Cache interface {
 	// Get(bucket string, key string, opts ...Option) ([]byte, error)
 	// Delete(bucket string, key string, opts ...Option) error
 
-	Set(bucket string, key string, value []byte, opts ...Options) error
-	Get(bucket string, key string, opts ...Options) ([]byte, error)
+	Set(bucket string, key string, value []byte, opts Options) error
+	Get(bucket string, key string) ([]byte, error)
 }

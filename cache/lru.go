@@ -10,7 +10,7 @@ import (
 // LRUCache implements a [Cache] that supports different [EvictionPolicy].
 // LRU instead of Lru https://google.github.io/styleguide/go/decisions.html#initialisms
 type LRUCache struct {
-	size int
+	capacity int
 
 	// mu locaks all the buckets and the order list.
 	mu sync.RWMutex
@@ -24,19 +24,21 @@ type LRUCache struct {
 }
 
 type cacheEntry struct {
+	// Save the bucket key to use in eviction
+	bucket     string
+	key        string
 	value      []byte
 	expiration time.Time
 }
 
-func NewLRUCache(size int) *LRUCache {
+func NewLRUCache(capacity int) *LRUCache {
 	return &LRUCache{
-		size:    size,
-		buckets: make(map[string]map[string]*list.Element),
-		order:   list.New(),
+		capacity: capacity,
+		buckets:  make(map[string]map[string]*list.Element),
+		order:    list.New(),
 	}
 }
 
-// TODO: evict, update policy etc.
 func (c *LRUCache) Set(bucket string, key string, value []byte, opts Options) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -53,13 +55,22 @@ func (c *LRUCache) Set(bucket string, key string, value []byte, opts Options) er
 	if opts.TTL > 0 {
 		expiration = time.Now().Add(opts.TTL)
 	}
-	entry := cacheEntry{value: value, expiration: expiration}
+	entry := cacheEntry{bucket: bucket, key: key, value: value, expiration: expiration}
 
 	// Check if the key already exists
 	e, ok := b[key]
 	if ok {
 		e.Value = entry
+		if opts.EvictionPolicy == EvictionPolicyLRU || opts.EvictionPolicy == EvictionPolicyMRU {
+			c.order.MoveToBack(e)
+		}
 		return nil
+	}
+
+	// Evict before inserting new key
+	size := c.order.Len()
+	if size >= c.capacity {
+		c.evict(opts.EvictionPolicy)
 	}
 
 	// Add new key to the bucket
@@ -73,6 +84,14 @@ func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	// Per requirement, use Oldest eviction policy on Get.
+	// TODO: this requirement is quite confusing, why not use
+	// the policy provided in the options?
+	size := c.order.Len()
+	if size >= c.capacity {
+		c.evict(EvictionPolicyNone)
+	}
+
 	// TODO: define error for not found
 	b, ok := c.buckets[bucket]
 	if !ok {
@@ -85,11 +104,62 @@ func (c *LRUCache) Get(bucket string, key string, opts Options) ([]byte, error) 
 	}
 
 	entry := e.Value.(cacheEntry)
+	// Lazy TTL
 	if !entry.expiration.IsZero() && entry.expiration.Before(time.Now()) {
+		c.del(e)
 		return nil, fmt.Errorf("key %s expired", key)
 	}
 
-	// TODO: update order
+	// Update order for LRU and MRU
+	if opts.EvictionPolicy == EvictionPolicyLRU || opts.EvictionPolicy == EvictionPolicyMRU {
+		c.order.MoveToBack(e)
+	}
 
 	return entry.value, nil
+}
+
+func (c *LRUCache) Delete(bucket string, key string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Error if not exists
+	b, ok := c.buckets[bucket]
+	if !ok {
+		return fmt.Errorf("bucket %s not found", bucket)
+	}
+
+	_, ok = b[key]
+	if !ok {
+		return fmt.Errorf("key %s not found", key)
+	}
+
+	// Delete if exists
+	c.del(b[key])
+	return nil
+}
+
+func (c *LRUCache) evict(policy EvictionPolicy) {
+	// No need to lock, caller already holds the lock
+
+	var e *list.Element
+	switch policy {
+	case EvictionPolicyMRU, EvictionPolicyNewest:
+		e = c.order.Back()
+	default:
+		// LRU, None, Oldest
+		e = c.order.Front()
+	}
+
+	c.del(e)
+}
+
+func (c *LRUCache) del(e *list.Element) {
+	c.order.Remove(e)
+
+	entry := e.Value.(cacheEntry)
+	b := c.buckets[entry.bucket]
+	delete(b, entry.key)
+	if len(b) == 0 {
+		delete(c.buckets, entry.bucket)
+	}
 }

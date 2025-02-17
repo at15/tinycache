@@ -32,3 +32,17 @@ func TestNoTTL(t *testing.T) {
 	_, err = c.Get("b1", "k2", Options{})
 	assert.Error(t, err)
 }
+
+func TestCapacity(t *testing.T) {
+	c := NewLRUCache(3)
+	c.Set("b1", "k1", []byte("v1"), Options{})
+	c.Set("b1", "k2", []byte("v2"), Options{})
+	c.Set("b1", "k3", []byte("v3"), Options{})
+
+	_, err := c.Get("b1", "k1", Options{})
+	assert.Error(t, err)
+
+	v, err := c.Get("b1", "k2", Options{})
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("v2"), v)
+}
