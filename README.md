@@ -1,18 +1,23 @@
 # tinycache
 
-A in memory kv cache in Go with http and grpc interface. Toy project, do NOT use in production.
+A in memory KV cache in Go with http API. Supports LRU and TTL.
+Toy project, do NOT use in production.
 
 ## Usage
 
 See [cmd/tinycache/main.go](cmd/tinycache) for using the server, which uses the library in [server/http.go](server/http.go)
 
+### Server
+
 ```bash
 # Install to $GOPATH/bin
 make install
 # Run server on localhost:8080
-# View metrics on http://localhost:8080/stats
+# View prometheus metrics on http://localhost:8080/stats
 tinycache
 ```
+
+### Client
 
 curl
 
@@ -27,6 +32,13 @@ curl -X GET http://localhost:8080/cache/b1/k1
 
 # delete
 curl -X DELETE http://localhost:8080/cache/b1/k1
+```
+
+### Docker
+
+```bash
+make docker-build
+make docker-run
 ```
 
 ## TODO
@@ -47,3 +59,7 @@ Server
 - [x] metrics, using prometheus
 - [ ] client in the cli
 - [ ] redis protocol? (if I have time)
+
+## References
+
+- https://github.com/hashicorp/golang-lru has more complex LRU implementation and supports resize.

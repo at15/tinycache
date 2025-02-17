@@ -64,6 +64,7 @@ func ParseFromRequest(r *http.Request) (Options, error) {
 // type Option func(o Options) error
 // type Option func(*Options) error
 
+// Cache interface that only has one implementation ... [LRUCache]
 type Cache interface {
 	// TODO: options interface provided is likely wrong
 	// TODO: different eviction policy for each bucket + key? shouldn't entire cache have the same eviction policy?

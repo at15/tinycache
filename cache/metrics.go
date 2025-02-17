@@ -37,6 +37,8 @@ type MetricsHandler interface {
 	SetSize(size int)
 }
 
+// MetricsExporter allows http server to export metrics.
+// It should use same underlying implementation as [MetricsHandler].
 type MetricsExporter interface {
 	HTTPHandler() http.Handler
 }
@@ -65,6 +67,8 @@ type prometheusMetrics struct {
 	size      *prometheus.GaugeVec
 }
 
+// NewPrometheusMetrics creates a new prometheus metrics handler
+// that supports both [MetricsHandler] and [MetricsExporter]
 func NewPrometheusMetrics() *prometheusMetrics {
 	p := &prometheusMetrics{
 		notFound: prometheus.NewCounterVec(prometheus.CounterOpts{

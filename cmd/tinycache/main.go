@@ -21,7 +21,8 @@ func main() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
 	go func() {
-		server.Start(context.Background(), "localhost", 8080)
+		// Use 0.0.0.0 instead of localhost for running in docker
+		server.Start(context.Background(), "0.0.0.0", 8080)
 	}()
 	<-ch
 	log.Println("Stopping server...")
