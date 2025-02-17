@@ -4,6 +4,8 @@ A in memory kv cache in Go with http and grpc interface. Toy project, do NOT use
 
 ## Usage
 
+See [cmd/tinycache/main.go](cmd/tinycache) for using the server, which uses the library in [server/http.go](server/http.go)
+
 ```bash
 # Install to $GOPATH/bin
 make install
@@ -17,6 +19,8 @@ curl
 ```bash
 # set
 curl -X PUT http://localhost:8080/cache/b1/k1 -d "v1"
+# set with ttl and policy
+curl -X PUT "http://localhost:8080/cache/b1/k1?ttl=1s&policy=lru" -d "v1"
 
 # get
 curl -X GET http://localhost:8080/cache/b1/k1

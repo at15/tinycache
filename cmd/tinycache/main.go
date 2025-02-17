@@ -14,7 +14,7 @@ import (
 func main() {
 	// Start http server on port 8080
 	metrics := cache.NewPrometheusMetrics()
-	cache := cache.NewLRUCache(10, 1*time.Second, metrics)
+	cache := cache.NewLRUCache(10, 500*time.Millisecond, metrics)
 	server := server.NewHTTPServer(cache, metrics)
 
 	// Listen to ctrl c to stop the server in background
