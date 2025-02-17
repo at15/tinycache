@@ -67,3 +67,5 @@ func TestTTL(t *testing.T) {
 
 	c.Stop()
 }
+
+// TODO: Test different evict policies, mabye table test

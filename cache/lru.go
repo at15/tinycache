@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var _ Cache = &LRUCache{}
+
 // LRUCache implements a [Cache] that supports different [EvictionPolicy].
 // LRU instead of Lru https://google.github.io/styleguide/go/decisions.html#initialisms
 type LRUCache struct {
