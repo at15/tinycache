@@ -1,0 +1,35 @@
+// brew install protobuf
+
+syntax = "proto3";
+package tinycache;
+
+option go_package = "github.com/at15/tinycache/proto";
+
+message SetRequest {
+    string bucket = 1;
+    string key = 2;
+    bytes value = 3;
+    int32 ttl_ms = 4; // ttl in miliseconds
+}
+
+// A generic response that applies to all operations.
+// Empty right now because we only return something when
+// there is error
+message Response {
+}
+
+message GetRequest {
+    string bucket = 1;
+    string key = 2;
+}
+
+message DeleteRequest {
+    string bucket = 1;
+    string key = 2;
+}
+
+service TinyCache {
+    rpc Set(SetRequest) returns (Response) {}
+    rpc Get(GetRequest) return (Response) {}
+    rpc Delete(DeleteRequest) return (Response) {}
+}

@@ -1,5 +1,7 @@
 IMAGE_VERSION := 0.1
 
+.PHONY: proto
+
 install: fmt
 	go install ./cmd/tinycache
 
@@ -19,3 +21,8 @@ docker-run:
 doc:
 	@echo "Open http://localhost:6060/pkg/github.com/at15/tinycache/cache/"
 	godoc -http=:6060
+
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		proto/tinycache.proto

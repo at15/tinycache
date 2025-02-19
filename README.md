@@ -41,6 +41,14 @@ make docker-build
 make docker-run
 ```
 
+## Development
+
+### gRPC/Protobuf
+
+```bash
+brew install protobuf
+```
+
 ## TODO
 
 KV
