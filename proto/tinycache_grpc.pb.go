@@ -21,8 +21,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TinyCache_Set_FullMethodName    = "/tinycache.TinyCache/Set"
 	TinyCache_Get_FullMethodName    = "/tinycache.TinyCache/Get"
+	TinyCache_Set_FullMethodName    = "/tinycache.TinyCache/Set"
 	TinyCache_Delete_FullMethodName = "/tinycache.TinyCache/Delete"
 )
 
@@ -30,9 +30,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TinyCacheClient interface {
-	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*Response, error)
-	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*Response, error)
-	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*Response, error)
+	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
+	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 }
 
 type tinyCacheClient struct {
@@ -43,19 +43,9 @@ func NewTinyCacheClient(cc grpc.ClientConnInterface) TinyCacheClient {
 	return &tinyCacheClient{cc}
 }
 
-func (c *tinyCacheClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*Response, error) {
+func (c *tinyCacheClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Response)
-	err := c.cc.Invoke(ctx, TinyCache_Set_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *tinyCacheClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*Response, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Response)
+	out := new(GetResponse)
 	err := c.cc.Invoke(ctx, TinyCache_Get_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -63,9 +53,19 @@ func (c *tinyCacheClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *tinyCacheClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*Response, error) {
+func (c *tinyCacheClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Response)
+	out := new(EmptyResponse)
+	err := c.cc.Invoke(ctx, TinyCache_Set_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tinyCacheClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyResponse)
 	err := c.cc.Invoke(ctx, TinyCache_Delete_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -77,9 +77,9 @@ func (c *tinyCacheClient) Delete(ctx context.Context, in *DeleteRequest, opts ..
 // All implementations must embed UnimplementedTinyCacheServer
 // for forward compatibility.
 type TinyCacheServer interface {
-	Set(context.Context, *SetRequest) (*Response, error)
-	Get(context.Context, *GetRequest) (*Response, error)
-	Delete(context.Context, *DeleteRequest) (*Response, error)
+	Get(context.Context, *GetRequest) (*GetResponse, error)
+	Set(context.Context, *SetRequest) (*EmptyResponse, error)
+	Delete(context.Context, *DeleteRequest) (*EmptyResponse, error)
 	mustEmbedUnimplementedTinyCacheServer()
 }
 
@@ -90,13 +90,13 @@ type TinyCacheServer interface {
 // pointer dereference when methods are called.
 type UnimplementedTinyCacheServer struct{}
 
-func (UnimplementedTinyCacheServer) Set(context.Context, *SetRequest) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
-}
-func (UnimplementedTinyCacheServer) Get(context.Context, *GetRequest) (*Response, error) {
+func (UnimplementedTinyCacheServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedTinyCacheServer) Delete(context.Context, *DeleteRequest) (*Response, error) {
+func (UnimplementedTinyCacheServer) Set(context.Context, *SetRequest) (*EmptyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
+}
+func (UnimplementedTinyCacheServer) Delete(context.Context, *DeleteRequest) (*EmptyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 func (UnimplementedTinyCacheServer) mustEmbedUnimplementedTinyCacheServer() {}
@@ -120,24 +120,6 @@ func RegisterTinyCacheServer(s grpc.ServiceRegistrar, srv TinyCacheServer) {
 	s.RegisterService(&TinyCache_ServiceDesc, srv)
 }
 
-func _TinyCache_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TinyCacheServer).Set(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TinyCache_Set_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TinyCacheServer).Set(ctx, req.(*SetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _TinyCache_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRequest)
 	if err := dec(in); err != nil {
@@ -152,6 +134,24 @@ func _TinyCache_Get_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TinyCacheServer).Get(ctx, req.(*GetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TinyCache_Set_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TinyCacheServer).Set(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TinyCache_Set_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TinyCacheServer).Set(ctx, req.(*SetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -182,12 +182,12 @@ var TinyCache_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*TinyCacheServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Set",
-			Handler:    _TinyCache_Set_Handler,
-		},
-		{
 			MethodName: "Get",
 			Handler:    _TinyCache_Get_Handler,
+		},
+		{
+			MethodName: "Set",
+			Handler:    _TinyCache_Set_Handler,
 		},
 		{
 			MethodName: "Delete",
