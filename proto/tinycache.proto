@@ -30,6 +30,6 @@ message DeleteRequest {
 
 service TinyCache {
     rpc Set(SetRequest) returns (Response) {}
-    rpc Get(GetRequest) return (Response) {}
-    rpc Delete(DeleteRequest) return (Response) {}
+    rpc Get(GetRequest) returns (Response) {}
+    rpc Delete(DeleteRequest) returns (Response) {}
 }
