@@ -5,7 +5,7 @@ Toy project, do NOT use in production.
 
 ## Usage
 
-See [cmd/tinycache/main.go](cmd/tinycache) for using the server, which uses the library in [server/http.go](server/http.go)
+See [cmd/tinycache/main.go](cmd/tinycache) for using the server and client, which uses the library in [server/http.go](server/http.go) and [server/grpc.go](server/grpc.go).
 
 ### Server
 
@@ -14,12 +14,16 @@ See [cmd/tinycache/main.go](cmd/tinycache) for using the server, which uses the 
 make install
 # Run server on localhost:8080
 # View prometheus metrics on http://localhost:8080/stats
-tinycache
+tinycache server
+# gRPC server
+tinycache server --grpc
 ```
 
 ### Client
 
-curl
+#### curl
+
+NOTE: Only works for HTTP server.
 
 ```bash
 # set
@@ -34,6 +38,31 @@ curl -X GET http://localhost:8080/cache/b1/k1
 curl -X DELETE http://localhost:8080/cache/b1/k1
 ```
 
+#### REPL
+
+NOTE: Only works for gRPC right now.
+
+```text
+tinycache client
+TinyCache CLI (type 'help' for commands, 'exit' to quit)
+Connected to localhost:8080
+> set k1 v1
+Usage: set <bucket> <key> <value> [ttl_ms]
+> set b1 k1 v1
+OK
+> set b2 k2 v3
+OK
+> get b1 k1
+v1
+> get b2 k3
+Error: rpc error: code = Unknown desc = key k3 not found
+> del b1 k1
+OK
+> get b1 k1
+Error: rpc error: code = Unknown desc = bucket b1 not found
+> exit
+```
+
 ### Docker
 
 ```bash
@@ -45,12 +74,22 @@ make docker-run
 
 ### gRPC/Protobuf
 
+To regenerate pb files after chainging the proto
+
 ```bash
 brew install protobuf
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 make proto
 ```
+
+### How it works
+
+Just using a linked list to track the insertion order and recent usage.
+We are using a **single** linked list to track different policies, so
+the behavior can be strange when mixed policies are used ... Ideally
+the eviction policy should be same for entire cache and not specified
+in each operation.
 
 ## TODO
 
